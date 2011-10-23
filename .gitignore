@@ -1,0 +1,5 @@
+bin
+*.egg-info
+include
+lib
+.db.sqlite3

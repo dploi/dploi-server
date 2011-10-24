@@ -3,7 +3,7 @@ from django.contrib import admin
 from dploi_server.models import (Realm, Host,
               Postgres, Gunicorn, RabbitMq, Celery, Redis, Solr,
               Application, Deployment, DomainName, DomainAlias, DomainRedirect,
-              PostgresInstance, GunicornInstance, RabbitMqInstance, CeleryInstance, RedisInstance, SolrInstance)
+              PostgresInstance, GunicornInstance, RabbitMqInstance, CeleryInstance, RedisInstance, SolrInstance, LoadBalancer)
 
 
 
@@ -38,6 +38,10 @@ admin.site.register(Realm, RealmAdmin)
 ##############
 
 
+class LoadBalancerInline(TabularInline):
+    model = LoadBalancer
+
+
 class PostgresInline(TabularInline):
     model = Postgres
 
@@ -65,7 +69,7 @@ class SolrInline(TabularInline):
 class HostAdmin(admin.ModelAdmin):
     list_display = ('name', 'public_ipv4', 'private_ipv4', 'realm',)
     list_filter = ('realm',)
-    inlines = (PostgresInline, GunicornInline, RabbitMqInline, CeleryInline, RedisInline, SolrInline)
+    inlines = (LoadBalancerInline, PostgresInline, GunicornInline, RabbitMqInline, CeleryInline, RedisInline, SolrInline)
 
 
 admin.site.register(Host, HostAdmin)

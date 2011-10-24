@@ -13,6 +13,7 @@ class Migration(SchemaMigration):
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('name', self.gf('django.db.models.fields.CharField')(unique=True, max_length=255)),
             ('verbose_name', self.gf('django.db.models.fields.CharField')(max_length=255)),
+            ('base_domain', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('puppet_repository', self.gf('django.db.models.fields.CharField')(default='', max_length=255, blank=True)),
             ('puppet_repository_private_key', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
             ('puppet_repository_public_key', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
@@ -24,12 +25,21 @@ class Migration(SchemaMigration):
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('realm', self.gf('django.db.models.fields.related.ForeignKey')(related_name='hosts', to=orm['dploi_server.Realm'])),
             ('name', self.gf('django.db.models.fields.CharField')(max_length=255)),
-            ('ipv4', self.gf('django.db.models.fields.CharField')(max_length=15)),
+            ('public_ipv4', self.gf('django.db.models.fields.CharField')(max_length=15)),
+            ('private_ipv4', self.gf('django.db.models.fields.CharField')(max_length=15)),
         ))
         db.send_create_signal('dploi_server', ['Host'])
 
         # Adding unique constraint on 'Host', fields ['realm', 'name']
         db.create_unique('dploi_server_host', ['realm_id', 'name'])
+
+        # Adding model 'LoadBalancer'
+        db.create_table('dploi_server_loadbalancer', (
+            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('host', self.gf('django.db.models.fields.related.ForeignKey')(related_name='loadbalancers', to=orm['dploi_server.Host'])),
+            ('is_enabled', self.gf('django.db.models.fields.BooleanField')(default=False)),
+        ))
+        db.send_create_signal('dploi_server', ['LoadBalancer'])
 
         # Adding model 'Postgres'
         db.create_table('dploi_server_postgres', (
@@ -64,14 +74,14 @@ class Migration(SchemaMigration):
         ))
         db.send_create_signal('dploi_server', ['Redis'])
 
-        # Adding model 'RabbitMQ'
+        # Adding model 'RabbitMq'
         db.create_table('dploi_server_rabbitmq', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
             ('host', self.gf('django.db.models.fields.related.ForeignKey')(related_name='rabbitmqs', to=orm['dploi_server.Host'])),
             ('is_enabled', self.gf('django.db.models.fields.BooleanField')(default=False)),
             ('port', self.gf('django.db.models.fields.IntegerField')(default=5432)),
         ))
-        db.send_create_signal('dploi_server', ['RabbitMQ'])
+        db.send_create_signal('dploi_server', ['RabbitMq'])
 
         # Adding model 'Solr'
         db.create_table('dploi_server_solr', (
@@ -100,7 +110,8 @@ class Migration(SchemaMigration):
             ('identifier', self.gf('django.db.models.fields.CharField')(unique=True, max_length=255)),
             ('name', self.gf('django.db.models.fields.CharField')(max_length=255)),
             ('description', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
-            ('key', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
+            ('private_key', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
+            ('public_key', self.gf('django.db.models.fields.TextField')(default='', blank=True)),
             ('branch', self.gf('django.db.models.fields.CharField')(default='develop', max_length=255)),
         ))
         db.send_create_signal('dploi_server', ['Deployment'])
@@ -108,22 +119,26 @@ class Migration(SchemaMigration):
         # Adding unique constraint on 'Deployment', fields ['application', 'name']
         db.create_unique('dploi_server_deployment', ['application_id', 'name'])
 
-        # Adding model 'Domain'
-        db.create_table('dploi_server_domain', (
+        # Adding model 'DomainName'
+        db.create_table('dploi_server_domainname', (
             ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='domains', to=orm['dploi_server.Deployment'])),
             ('name', self.gf('django.db.models.fields.CharField')(unique=True, max_length=255)),
         ))
-        db.send_create_signal('dploi_server', ['Domain'])
+        db.send_create_signal('dploi_server', ['DomainName'])
 
-        # Adding model 'RedirectDomain'
-        db.create_table('dploi_server_redirectdomain', (
-            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
-            ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='redirect_domains', to=orm['dploi_server.Deployment'])),
-            ('name', self.gf('django.db.models.fields.CharField')(unique=True, max_length=255)),
-            ('include_www', self.gf('django.db.models.fields.BooleanField')(default=True)),
+        # Adding model 'DomainAlias'
+        db.create_table('dploi_server_domainalias', (
+            ('domainname_ptr', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['dploi_server.DomainName'], unique=True, primary_key=True)),
+            ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='domain_aliases', to=orm['dploi_server.Deployment'])),
         ))
-        db.send_create_signal('dploi_server', ['RedirectDomain'])
+        db.send_create_signal('dploi_server', ['DomainAlias'])
+
+        # Adding model 'DomainRedirect'
+        db.create_table('dploi_server_domainredirect', (
+            ('domainname_ptr', self.gf('django.db.models.fields.related.OneToOneField')(to=orm['dploi_server.DomainName'], unique=True, primary_key=True)),
+            ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='domain_redirects', to=orm['dploi_server.Deployment'])),
+        ))
+        db.send_create_signal('dploi_server', ['DomainRedirect'])
 
         # Adding model 'PostgresInstance'
         db.create_table('dploi_server_postgresinstance', (
@@ -149,6 +164,20 @@ class Migration(SchemaMigration):
             ('max_requests', self.gf('django.db.models.fields.PositiveSmallIntegerField')(default=2000)),
         ))
         db.send_create_signal('dploi_server', ['GunicornInstance'])
+
+        # Adding model 'RabbitMqInstance'
+        db.create_table('dploi_server_rabbitmqinstance', (
+            ('id', self.gf('django.db.models.fields.AutoField')(primary_key=True)),
+            ('service', self.gf('django.db.models.fields.related.ForeignKey')(related_name='instances', to=orm['dploi_server.RabbitMq'])),
+            ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='rabbitmq_instances', to=orm['dploi_server.Deployment'])),
+            ('virtual_host', self.gf('django.db.models.fields.CharField')(max_length=255)),
+            ('user', self.gf('django.db.models.fields.CharField')(max_length=255)),
+            ('password', self.gf('django.db.models.fields.CharField')(max_length=255)),
+        ))
+        db.send_create_signal('dploi_server', ['RabbitMqInstance'])
+
+        # Adding unique constraint on 'RabbitMqInstance', fields ['virtual_host', 'service']
+        db.create_unique('dploi_server_rabbitmqinstance', ['virtual_host', 'service_id'])
 
         # Adding model 'CeleryInstance'
         db.create_table('dploi_server_celeryinstance', (
@@ -176,12 +205,22 @@ class Migration(SchemaMigration):
             ('service', self.gf('django.db.models.fields.related.ForeignKey')(related_name='instances', to=orm['dploi_server.Solr'])),
             ('deployment', self.gf('django.db.models.fields.related.ForeignKey')(related_name='solr_instances', to=orm['dploi_server.Deployment'])),
             ('name', self.gf('django.db.models.fields.CharField')(max_length=255)),
+            ('password', self.gf('django.db.models.fields.CharField')(max_length=255)),
         ))
         db.send_create_signal('dploi_server', ['SolrInstance'])
+
+        # Adding unique constraint on 'SolrInstance', fields ['name', 'service']
+        db.create_unique('dploi_server_solrinstance', ['name', 'service_id'])
 
 
     def backwards(self, orm):
         
+        # Removing unique constraint on 'SolrInstance', fields ['name', 'service']
+        db.delete_unique('dploi_server_solrinstance', ['name', 'service_id'])
+
+        # Removing unique constraint on 'RabbitMqInstance', fields ['virtual_host', 'service']
+        db.delete_unique('dploi_server_rabbitmqinstance', ['virtual_host', 'service_id'])
+
         # Removing unique constraint on 'PostgresInstance', fields ['name', 'service']
         db.delete_unique('dploi_server_postgresinstance', ['name', 'service_id'])
 
@@ -197,6 +236,9 @@ class Migration(SchemaMigration):
         # Deleting model 'Host'
         db.delete_table('dploi_server_host')
 
+        # Deleting model 'LoadBalancer'
+        db.delete_table('dploi_server_loadbalancer')
+
         # Deleting model 'Postgres'
         db.delete_table('dploi_server_postgres')
 
@@ -209,7 +251,7 @@ class Migration(SchemaMigration):
         # Deleting model 'Redis'
         db.delete_table('dploi_server_redis')
 
-        # Deleting model 'RabbitMQ'
+        # Deleting model 'RabbitMq'
         db.delete_table('dploi_server_rabbitmq')
 
         # Deleting model 'Solr'
@@ -221,17 +263,23 @@ class Migration(SchemaMigration):
         # Deleting model 'Deployment'
         db.delete_table('dploi_server_deployment')
 
-        # Deleting model 'Domain'
-        db.delete_table('dploi_server_domain')
+        # Deleting model 'DomainName'
+        db.delete_table('dploi_server_domainname')
 
-        # Deleting model 'RedirectDomain'
-        db.delete_table('dploi_server_redirectdomain')
+        # Deleting model 'DomainAlias'
+        db.delete_table('dploi_server_domainalias')
+
+        # Deleting model 'DomainRedirect'
+        db.delete_table('dploi_server_domainredirect')
 
         # Deleting model 'PostgresInstance'
         db.delete_table('dploi_server_postgresinstance')
 
         # Deleting model 'GunicornInstance'
         db.delete_table('dploi_server_gunicorninstance')
+
+        # Deleting model 'RabbitMqInstance'
+        db.delete_table('dploi_server_rabbitmqinstance')
 
         # Deleting model 'CeleryInstance'
         db.delete_table('dploi_server_celeryinstance')
@@ -275,14 +323,24 @@ class Migration(SchemaMigration):
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'identifier': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255'}),
             'is_live': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
-            'key': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'max_length': '255'})
+            'name': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
+            'private_key': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'}),
+            'public_key': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'})
         },
-        'dploi_server.domain': {
-            'Meta': {'object_name': 'Domain'},
-            'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'domains'", 'to': "orm['dploi_server.Deployment']"}),
+        'dploi_server.domainalias': {
+            'Meta': {'object_name': 'DomainAlias', '_ormbases': ['dploi_server.DomainName']},
+            'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'domain_aliases'", 'to': "orm['dploi_server.Deployment']"}),
+            'domainname_ptr': ('django.db.models.fields.related.OneToOneField', [], {'to': "orm['dploi_server.DomainName']", 'unique': 'True', 'primary_key': 'True'})
+        },
+        'dploi_server.domainname': {
+            'Meta': {'object_name': 'DomainName'},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255'})
+        },
+        'dploi_server.domainredirect': {
+            'Meta': {'object_name': 'DomainRedirect', '_ormbases': ['dploi_server.DomainName']},
+            'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'domain_redirects'", 'to': "orm['dploi_server.Deployment']"}),
+            'domainname_ptr': ('django.db.models.fields.related.OneToOneField', [], {'to': "orm['dploi_server.DomainName']", 'unique': 'True', 'primary_key': 'True'})
         },
         'dploi_server.gunicorn': {
             'Meta': {'object_name': 'Gunicorn'},
@@ -301,9 +359,16 @@ class Migration(SchemaMigration):
         'dploi_server.host': {
             'Meta': {'unique_together': "(('realm', 'name'),)", 'object_name': 'Host'},
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'ipv4': ('django.db.models.fields.CharField', [], {'max_length': '15'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
+            'private_ipv4': ('django.db.models.fields.CharField', [], {'max_length': '15'}),
+            'public_ipv4': ('django.db.models.fields.CharField', [], {'max_length': '15'}),
             'realm': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'hosts'", 'to': "orm['dploi_server.Realm']"})
+        },
+        'dploi_server.loadbalancer': {
+            'Meta': {'object_name': 'LoadBalancer'},
+            'host': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'loadbalancers'", 'to': "orm['dploi_server.Host']"}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'is_enabled': ('django.db.models.fields.BooleanField', [], {'default': 'False'})
         },
         'dploi_server.postgres': {
             'Meta': {'object_name': 'Postgres'},
@@ -323,27 +388,30 @@ class Migration(SchemaMigration):
             'user': ('django.db.models.fields.CharField', [], {'max_length': '255'})
         },
         'dploi_server.rabbitmq': {
-            'Meta': {'object_name': 'RabbitMQ'},
+            'Meta': {'object_name': 'RabbitMq'},
             'host': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'rabbitmqs'", 'to': "orm['dploi_server.Host']"}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'is_enabled': ('django.db.models.fields.BooleanField', [], {'default': 'False'}),
             'port': ('django.db.models.fields.IntegerField', [], {'default': '5432'})
         },
+        'dploi_server.rabbitmqinstance': {
+            'Meta': {'unique_together': "(('virtual_host', 'service'),)", 'object_name': 'RabbitMqInstance'},
+            'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'rabbitmq_instances'", 'to': "orm['dploi_server.Deployment']"}),
+            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
+            'password': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
+            'service': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'instances'", 'to': "orm['dploi_server.RabbitMq']"}),
+            'user': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
+            'virtual_host': ('django.db.models.fields.CharField', [], {'max_length': '255'})
+        },
         'dploi_server.realm': {
             'Meta': {'object_name': 'Realm'},
+            'base_domain': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255'}),
             'puppet_repository': ('django.db.models.fields.CharField', [], {'default': "''", 'max_length': '255', 'blank': 'True'}),
             'puppet_repository_private_key': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'}),
             'puppet_repository_public_key': ('django.db.models.fields.TextField', [], {'default': "''", 'blank': 'True'}),
             'verbose_name': ('django.db.models.fields.CharField', [], {'max_length': '255'})
-        },
-        'dploi_server.redirectdomain': {
-            'Meta': {'object_name': 'RedirectDomain'},
-            'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'redirect_domains'", 'to': "orm['dploi_server.Deployment']"}),
-            'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
-            'include_www': ('django.db.models.fields.BooleanField', [], {'default': 'True'}),
-            'name': ('django.db.models.fields.CharField', [], {'unique': 'True', 'max_length': '255'})
         },
         'dploi_server.redis': {
             'Meta': {'object_name': 'Redis'},
@@ -366,10 +434,11 @@ class Migration(SchemaMigration):
             'port': ('django.db.models.fields.IntegerField', [], {'default': '8983'})
         },
         'dploi_server.solrinstance': {
-            'Meta': {'object_name': 'SolrInstance'},
+            'Meta': {'unique_together': "(('name', 'service'),)", 'object_name': 'SolrInstance'},
             'deployment': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'solr_instances'", 'to': "orm['dploi_server.Deployment']"}),
             'id': ('django.db.models.fields.AutoField', [], {'primary_key': 'True'}),
             'name': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
+            'password': ('django.db.models.fields.CharField', [], {'max_length': '255'}),
             'service': ('django.db.models.fields.related.ForeignKey', [], {'related_name': "'instances'", 'to': "orm['dploi_server.Solr']"})
         }
     }

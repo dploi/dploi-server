@@ -1,6 +1,8 @@
 #-*- coding: utf-8 -*-
+import random
 from django.db import models
-from .validation import variable_name_validator, variable_name_and_dash_validator
+from dploi_server.utils.password import generate_password
+from dploi_server.validation import variable_name_validator, variable_name_and_dash_validator
 
 
 class Realm(models.Model):
@@ -13,11 +15,12 @@ class Realm(models.Model):
     * Application - The Software/Application
     * Deployment - The Deployment of an Application. (e.g live or dev deployment of ApplicationX)
     * Service - A server that provides a service (to multiple different clients). E.g Postgres or Solr
-    * ServiceInstance - A usage of a Service by a Deployment (e.g the database for project X live)
+    * Instance - A usage of a Service by a Deployment (e.g the database for project X live)
     * Process - A Deployment specific Process (Daemon) running on a Host (e.g gunicorn, celery-worker)
     """
     name = models.CharField(max_length=255, validators=[variable_name_validator], unique=True)
     verbose_name = models.CharField(max_length=255)
+    base_domain = models.CharField(max_length=255, help_text='used for inital deployment domains. e.g myproject-live.basedomain.com')
     puppet_repository = models.CharField(max_length=255, blank=True, default='')
     puppet_repository_private_key = models.TextField(blank=True, default='')
     puppet_repository_public_key = models.TextField(blank=True, default='')
@@ -32,7 +35,8 @@ class Host(models.Model):
     """
     realm = models.ForeignKey(Realm, related_name='hosts')
     name = models.CharField(max_length=255, validators=[variable_name_validator])
-    ipv4 = models.CharField(max_length=15)
+    public_ipv4 = models.CharField(max_length=15)
+    private_ipv4 = models.CharField(max_length=15)
 
     class Meta:
         unique_together = ('realm', 'name')
@@ -56,6 +60,10 @@ class BaseService(models.Model):
         return u"%s (%s)" % (self.__class__.__name__, self.host)
 
 
+class LoadBalancer(BaseService):
+    pass
+
+
 class Postgres(BaseService):
     port = models.IntegerField(default=5432)
 
@@ -77,7 +85,8 @@ class Redis(BaseService):
     """
     pass
 
-class RabbitMQ(BaseService):
+
+class RabbitMq(BaseService):
     """
     RabbitMQ Service on one specific server. This is a "Node" in RabbitMQ speak
     """
@@ -116,8 +125,10 @@ class Deployment(models.Model):
                                   help_text='system wide unique identifier of this deplpyment')
     name = models.CharField(max_length=255, validators=[variable_name_validator])
     description = models.TextField(blank=True, default='')
-    key = models.TextField(blank=True, default='', help_text='public ssh key for source code access')
-    branch = models.CharField(max_length=255, default='develop')
+    private_key = models.TextField(blank=True, default='', help_text='private deployment ssh key for source code access')
+    public_key = models.TextField(blank=True, default='', help_text='public deployment ssh key for source code access')
+    branch = models.CharField(max_length=255, default='develop', help_text="branch or tag for this deployment")
+    load_balancer = models.ForeignKey(LoadBalancer, related_name='deployments', null=True, blank=True)
 
     class Meta:
         unique_together = (('application', 'name',),)
@@ -128,15 +139,19 @@ class Deployment(models.Model):
         return u"%s-%s" % (self.application.name, self.name)
 
 
-class Domain(models.Model):
-    deployment = models.ForeignKey(Deployment, related_name='domains')
+class DomainName(models.Model):
     name = models.CharField(max_length=255, unique=True)
 
+    def __unicode__(self):
+        return u"%s" % self.name
 
-class RedirectDomain(models.Model):
-    deployment = models.ForeignKey(Deployment, related_name='redirect_domains')
-    name = models.CharField(max_length=255, unique=True)
-    include_www = models.BooleanField(default=True)
+
+class DomainAlias(DomainName):
+    deployment = models.ForeignKey(Deployment, related_name='domain_aliases')
+
+
+class DomainRedirect(DomainName):
+    deployment = models.ForeignKey(Deployment, related_name='domain_redirects')
 
 
 class PostgresInstance(models.Model):
@@ -157,10 +172,13 @@ class PostgresInstance(models.Model):
 
     # Default values
     def get_default_name(self):
-        self.name = self.deployment.identifier
+        return self.deployment.identifier
 
     def get_default_user(self):
-        self.name = self.deployment.identifier
+        return self.deployment.identifier
+
+    def get_default_password(self):
+        return generate_password()
 
 
 class GunicornInstance(models.Model):
@@ -169,6 +187,28 @@ class GunicornInstance(models.Model):
 
     workers = models.PositiveSmallIntegerField(default=3)
     max_requests = models.PositiveSmallIntegerField(default=2000)
+
+
+class RabbitMqInstance(models.Model):
+    service = models.ForeignKey(RabbitMq, related_name='instances')
+    deployment = models.ForeignKey(Deployment, related_name='rabbitmq_instances')
+
+    virtual_host = models.CharField(max_length=255)
+    user = models.CharField(max_length=255)
+    password = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('virtual_host', 'service')
+
+    # Default values
+    def get_default_virtual_host(self):
+        return self.deployment.identifier
+
+    def get_default_user(self):
+        return self.deployment.identifier
+
+    def get_default_password(self):
+        return generate_password()
 
 
 class CeleryInstance(models.Model):
@@ -186,7 +226,18 @@ class CeleryInstance(models.Model):
 class RedisInstance(models.Model):
     service = models.ForeignKey(Redis, related_name='instances')
     deployment = models.ForeignKey(Deployment, related_name='redis_instances')
+
+    port = models.IntegerField()
     access_token = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('service', 'port',)
+
+    def get_default_port(self):
+        return random.randrange(50000,52000)
+
+    def get_default_access_token(self):
+        return generate_password(length=30)
 
 
 class SolrInstance(models.Model):
@@ -194,7 +245,16 @@ class SolrInstance(models.Model):
     deployment = models.ForeignKey(Deployment, related_name='solr_instances')
 
     name = models.CharField(max_length=255, help_text="solr core name (multicore)")
-    # password ?
+    password = models.CharField(max_length=255)
+
+    class Meta:
+        unique_together = ('name', 'service')
+    
+    def get_default_name(self):
+        return self.deployment.identifier
+
+    def get_default_password(self):
+        return generate_password()
 
 
 
@@ -219,7 +279,4 @@ def set_defaults(sender, **kwargs):
                 if callable(default_value):
                     default_value = default_value()
                 setattr(instance, field_name, default_value)
-
-for Model in (Realm, Host, Postgres, Gunicorn, Celery, Redis, Solr, Application, Deployment, Domain, RedirectDomain,
-              PostgresInstance, GunicornInstance, CeleryInstance, RedisInstance, SolrInstance):
-    pre_save.connect(set_defaults, sender=Model)
+pre_save.connect(set_defaults)

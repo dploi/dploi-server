@@ -1,8 +1,9 @@
 #-*- coding: utf-8 -*-
 from django.contrib import admin
-from .models import Realm, Host, Deployment, Application,\
-    Postgres, PostgresInstance, Gunicorn, GunicornInstance, Celery, CeleryInstance,\
-    Redis, RedisInstance, Solr, SolrInstance
+from dploi_server.models import (Realm, Host,
+              Postgres, Gunicorn, RabbitMq, Celery, Redis, Solr,
+              Application, Deployment, DomainName, DomainAlias, DomainRedirect,
+              PostgresInstance, GunicornInstance, RabbitMqInstance, CeleryInstance, RedisInstance, SolrInstance)
 
 
 
@@ -13,6 +14,7 @@ from .models import Realm, Host, Deployment, Application,\
 
 class TabularInline(admin.TabularInline):
     extra = 0
+
 
 ###############
 # Realm Admin #
@@ -44,6 +46,10 @@ class GunicornInline(TabularInline):
     model = Gunicorn
 
 
+class RabbitMqInline(TabularInline):
+    model = RabbitMq
+
+
 class CeleryInline(TabularInline):
     model = Celery
 
@@ -57,9 +63,9 @@ class SolrInline(TabularInline):
 
 
 class HostAdmin(admin.ModelAdmin):
-    list_display = ('name', 'ipv4', 'realm',)
+    list_display = ('name', 'public_ipv4', 'private_ipv4', 'realm',)
     list_filter = ('realm',)
-    inlines = (PostgresInline, GunicornInline, CeleryInline, RedisInline, SolrInline)
+    inlines = (PostgresInline, GunicornInline, RabbitMqInline, CeleryInline, RedisInline, SolrInline)
 
 
 admin.site.register(Host, HostAdmin)
@@ -72,8 +78,8 @@ admin.site.register(Host, HostAdmin)
 
 class DeploymentInline(TabularInline):
     model = Deployment
-    readonly_fields = ('identifier',)
     fields = ('name', 'is_live', 'branch', 'identifier',)
+    readonly_fields = ('identifier',)
 
 
 class ApplicationAdmin(admin.ModelAdmin):
@@ -89,12 +95,26 @@ admin.site.register(Application, ApplicationAdmin)
 #####################
 
 
+class DomainAliasInline(TabularInline):
+    model = DomainAlias
+
+
+class DomainRedirectInline(TabularInline):
+    model = DomainRedirect
+
+
 class PostgresInstanceInline(TabularInline):
     model = PostgresInstance
+    readonly_fields = ('name', 'user', 'password',)
 
 
 class GunicornInstanceInline(TabularInline):
     model = GunicornInstance
+
+
+class RabbitMqInstanceInline(TabularInline):
+    model = RabbitMqInstance
+    readonly_fields = ('virtual_host', 'user', 'password',)
 
 
 class CeleryInstanceInline(TabularInline):
@@ -103,18 +123,28 @@ class CeleryInstanceInline(TabularInline):
 
 class RedisInstanceInline(TabularInline):
     model = RedisInstance
+    readonly_fields = ('access_token',)
 
 
 class SolrInstanceInline(TabularInline):
     model = SolrInstance
+    readonly_fields = ('name', 'password',)
 
 
 class DeploymentAdmin(admin.ModelAdmin):
     list_display = ('identifier', 'name', 'application', 'is_live',)
     list_filter = ('name',)
     readonly_fields = ('identifier',)
-    inlines = (PostgresInstanceInline, GunicornInstanceInline, CeleryInstanceInline, RedisInstanceInline,
-               SolrInstanceInline)
+    inlines = (DomainAliasInline, DomainRedirectInline,
+               PostgresInstanceInline, GunicornInstanceInline, RabbitMqInstanceInline, CeleryInstanceInline,
+               RedisInstanceInline, SolrInstanceInline)
 
 
 admin.site.register(Deployment, DeploymentAdmin)
+
+##########
+# Domain #
+##########
+
+
+admin.site.register(DomainName)

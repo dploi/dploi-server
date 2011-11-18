@@ -38,6 +38,9 @@ class Host(models.Model):
     public_ipv4 = models.CharField(max_length=15)
     private_ipv4 = models.CharField(max_length=15)
 
+    def hostname(self):
+        return "%s.%s" % (self.name, self.realm.base_domain)
+
     class Meta:
         unique_together = ('realm', 'name')
 
@@ -129,6 +132,10 @@ class Deployment(models.Model):
     public_key = models.TextField(blank=True, default='', help_text='public deployment ssh key for source code access')
     branch = models.CharField(max_length=255, default='develop', help_text="branch or tag for this deployment")
     load_balancer = models.ForeignKey(LoadBalancer, related_name='deployments', null=True, blank=True)
+
+    def domains(self):
+        # TODO: Find a better way to lookup base domain(s)
+        return [{'name': "%s.%s" % (self.identifier, gunicorn.service.host.realm.base_domain)} for gunicorn in self.gunicorn_instances.all()]
 
     class Meta:
         unique_together = (('application', 'name',),)

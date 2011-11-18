@@ -34,7 +34,7 @@ class Host(models.Model):
     A physical (or virtual) machine with an IP address
     """
     realm = models.ForeignKey(Realm, related_name='hosts')
-    name = models.CharField(max_length=255, validators=[variable_name_validator])
+    name = models.CharField(max_length=255, validators=[variable_name_and_dash_validator])
     public_ipv4 = models.CharField(max_length=15)
     private_ipv4 = models.CharField(max_length=15)
 

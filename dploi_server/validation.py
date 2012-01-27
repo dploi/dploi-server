@@ -29,3 +29,10 @@ def variable_name_and_dash_validator(value):
     """
     if not VARIABLE_AND_DASH_REGEX_COMPILED.search(value):
         raise ValidationError('allowed characters: %s' % VARIABLE_AND_DASH_ALLOWED_CHARS)
+
+
+def hostname_validator(value):
+    """
+    TODO: Add correct hostname validator, e..g host.example.org
+    """
+    pass

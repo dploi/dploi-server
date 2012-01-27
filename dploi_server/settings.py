@@ -105,6 +105,7 @@ TEMPLATE_DIRS = (
 )
 
 INSTALLED_APPS = (
+    'dploi_server.services.dploiservice_gunicorn',
     'south',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -117,6 +118,8 @@ INSTALLED_APPS = (
     # 'django.contrib.admindocs',
     'dploi_server',
     'djangorestframework',
+
+
 )
 
 # A sample logging configuration. The only tangible logging

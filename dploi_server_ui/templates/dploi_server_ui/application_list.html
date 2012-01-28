@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% load future %}
+{% block content %}
+	<h1>dploi applications</h1>
+	<ul>
+	{% for application in object_list %}
+		<li><a href="{% url "dploi_application_detail" application.id %}">{{ application }}</a></li>
+	{% endfor %}
+	</ul>
+{% endblock %}

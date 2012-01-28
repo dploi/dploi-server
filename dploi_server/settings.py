@@ -117,6 +117,7 @@ INSTALLED_APPS = (
     # Uncomment the next line to enable admin documentation:
     # 'django.contrib.admindocs',
     'dploi_server',
+    'dploi_server_ui',
     'djangorestframework',
 
 

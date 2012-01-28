@@ -1,0 +1,15 @@
+{% load future %}
+<html>
+<head>
+
+</head>
+<body>
+	<div>
+		<ul>
+			<li><a href="{% url "dploi_overview" %}">Overview</a></li>
+			<li><a href="{% url "dploi_application_list" %}">Applications</a></li>
+		</ul>
+	</div>
+	{% block content %}{% endblock %}
+</body>
+</html>

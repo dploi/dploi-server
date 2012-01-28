@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load future %}
+{% block content %}
+	<h1>dploi ui</h1>
+
+	{{ object }}
+	<a href="{% url "dploi_application_update" object.id %}">Update application</a>
+{% endblock %}

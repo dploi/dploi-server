@@ -174,13 +174,16 @@ class Deployment(models.Model):
     application = models.ForeignKey(Application, related_name='deployments')
     is_live = models.BooleanField(default=False)
     identifier = models.CharField(max_length=255, unique=True, validators=[variable_name_and_dash_validator],
-                                  help_text='system wide unique identifier of this deplpyment')
+                                  help_text='system wide unique identifier of this deplpyment', editable=False)
     name = models.CharField(max_length=255, validators=[variable_name_validator])
     description = models.TextField(blank=True, default='')
     private_key = models.TextField(blank=True, default='', help_text='private deployment ssh key for source code access')
     public_key = models.TextField(blank=True, default='', help_text='public deployment ssh key for source code access')
     branch = models.CharField(max_length=255, default='develop', help_text="branch or tag for this deployment")
     load_balancer = models.ForeignKey(LoadBalancer, related_name='deployments', null=True, blank=True)
+
+    def __unicode__(self):
+        return self.identifier
 
     def domains(self):
         # TODO: Find a better way to lookup base domain(s)

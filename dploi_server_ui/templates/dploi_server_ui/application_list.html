@@ -19,7 +19,7 @@
 			</tr>
 			{% for deployment in application.deployments.all %}
 			<tr>
-				<td></td><td>{{ deployment.name }}</td><td><span class="label {% if deployment.is_live %}success{% endif %}">{{ deployment.is_live|yesno }}</span></td><td>{{ deployment.branch }}</td>
+				<td></td><td><a href="{% url "dploi_deployment_detail" application.id %}">{{ deployment.name }}</a></td><td><span class="label {% if deployment.is_live %}success{% endif %}">{{ deployment.is_live|yesno }}</span></td><td>{{ deployment.branch }}</td>
 			</tr>
 			{% endfor %}
 		{% endfor %}

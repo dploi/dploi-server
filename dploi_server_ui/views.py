@@ -2,7 +2,7 @@ from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
 from django.views.generic.edit import UpdateView
 from django.views.generic.list import ListView
-from dploi_server.models import Realm, Application
+from dploi_server.models import Realm, Application, Deployment
 
 class OverviewView(TemplateView):
     template_name = "dploi_server_ui/overview.html"
@@ -28,3 +28,11 @@ class ApplicationDetail(DetailView):
 class ApplicationUpdate(UpdateView):
     model = Application
     template_name = "dploi_server_ui/application_form.html"
+
+class DeploymentUpdate(UpdateView):
+    model = Deployment
+    template_name = "dploi_server_ui/deployment_form.html"
+
+class DeploymentDetail(DetailView):
+    model = Deployment
+    template_name = "dploi_server_ui/deployment_detail.html"

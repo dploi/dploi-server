@@ -1,7 +1,8 @@
 {% extends "base.html" %}
 {% load future %}
+{% block page_header %}Applications{% endblock %}
+{% block page_header_subtitle %}{% endblock %}
 {% block content %}
-	<h1>dploi applications</h1>
 	<ul>
 	{% for application in object_list %}
 		<li><a href="{% url "dploi_application_detail" application.id %}">{{ application }}</a></li>

@@ -1,6 +1,7 @@
 {% extends "base.html" %}
+{% block page_header %}Edit Application{% endblock %}
+{% block page_header_subtitle %}{{ object }}{% endblock %}
 {% block content %}
-	<h1>dploi ui</h1>
 	<form method="POST">
 	{% csrf_token %}
 		<table>

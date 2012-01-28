@@ -5,7 +5,7 @@ import sys
 from django.contrib.auth.models import User
 from dploi_server.directory import service_dir
 import re
-from yaml import load, dump
+from yaml import load, safe_dump
 from django.core.management.base import BaseCommand, CommandError
 from dploi_server.models import Host
 
@@ -31,7 +31,7 @@ class Command(BaseCommand):
         for cls in service_dir._service_instance_registry:
             for service_instance in cls.objects.filter(service__host=host):
                 projectlist[service_instance.deployment.get_default_identifier()] = {
-                    'uid': service_instance.deployment.pk,
+                    'uid': service_instance.deployment.unixuser.uid,
                     'state': service_instance.deployment.name,
                 }
         developerslist = {}
@@ -41,7 +41,7 @@ class Command(BaseCommand):
             ssh_key_list = user.dploi_ssh_keys.all()
             developerslist[user.get_full_name() or user.username] = {
                 'username':  user.username,
-                'uid':  user.pk,
+                'uid':  user.unixuser.uid,
                 'gid': 500, # STATIC!
                 'enabled': str(user.is_active).lower(),
                 'keys': [sshkey.name for sshkey in ssh_key_list],
@@ -67,7 +67,7 @@ class Command(BaseCommand):
                 }
         }
 
-        dump(node, sys.stdout,
+        safe_dump(node, sys.stdout,
             default_flow_style=False,
             explicit_start=True,
             indent=10 )

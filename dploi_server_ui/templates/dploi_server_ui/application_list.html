@@ -3,9 +3,26 @@
 {% block page_header %}Applications{% endblock %}
 {% block page_header_subtitle %}{% endblock %}
 {% block content %}
-	<ul>
-	{% for application in object_list %}
-		<li><a href="{% url "dploi_application_detail" application.id %}">{{ application }}</a></li>
-	{% endfor %}
-	</ul>
+	<table class="bordered-table zebra-striped">
+	<thead>
+		<tr>
+			<th>Application</th>
+			<th>Name</th>
+			<th>Is live?</th>
+			<th>Branch</th>
+		</tr>
+	</thead>
+		<tbody>
+		{% for application in object_list %}
+			<tr>
+				<td colspan="4"><a href="{% url "dploi_application_detail" application.id %}">{{ application }}</a></td>
+			</tr>
+			{% for deployment in application.deployments.all %}
+			<tr>
+				<td></td><td>{{ deployment.name }}</td><td><span class="label {% if deployment.is_live %}success{% endif %}">{{ deployment.is_live|yesno }}</span></td><td>{{ deployment.branch }}</td>
+			</tr>
+			{% endfor %}
+		{% endfor %}
+	</tbody>
+	</table>
 {% endblock %}

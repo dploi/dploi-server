@@ -1,5 +1,6 @@
 {% extends "base.html" %}
-{% block page_header %}Edit Application{% endblock %}
+{% load i18n %}
+{% block page_header %}{% trans "Edit Application" %}{% endblock %}
 {% block page_header_subtitle %}{{ object }}{% endblock %}
 {% block content %}
 	<form method="POST">
@@ -7,6 +8,7 @@
 		<table>
 			{{ form }}
 		</table>
-		<input type="submit">
+		<input class="btn primary" type="submit" value="{% trans "Save" %}">
+		<input class="btn" type="reset" value="{% trans "Reset" %}">
 	</form>
 {% endblock %}

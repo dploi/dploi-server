@@ -1,8 +1,10 @@
+from django.core.urlresolvers import reverse
 from django.views.generic.base import TemplateView
 from django.views.generic.detail import DetailView
-from django.views.generic.edit import UpdateView
+from django.views.generic.edit import UpdateView, CreateView
 from django.views.generic.list import ListView
 from dploi_server.models import Realm, Application, Deployment
+from django.contrib import messages
 
 class OverviewView(TemplateView):
     template_name = "dploi_server_ui/overview.html"
@@ -29,9 +31,33 @@ class ApplicationUpdate(UpdateView):
     model = Application
     template_name = "dploi_server_ui/application_form.html"
 
+    def get_success_url(self):
+        messages.success(self.request, "%s was successfully updated" % self.object, "success")
+        return reverse("dploi_application_list")
+
+class ApplicationCreate(CreateView):
+    model = Application
+    template_name = "dploi_server_ui/application_form.html"
+
+    def get_success_url(self):
+        messages.success(self.request, "%s was successfully added to the database" % self.object, "success")
+        return reverse("dploi_application_list")
+
 class DeploymentUpdate(UpdateView):
     model = Deployment
     template_name = "dploi_server_ui/deployment_form.html"
+
+    def get_success_url(self):
+        messages.success(self.request, "%s was successfully updated" % self.object, "success")
+        return reverse("dploi_application_list")
+
+class DeploymentCreate(CreateView):
+    model = Deployment
+    template_name = "dploi_server_ui/deployment_form.html"
+
+    def get_success_url(self):
+        messages.success(self.request, "%s was successfully added to the database" % self.object, "success")
+        return reverse("dploi_application_list")
 
 class DeploymentDetail(DetailView):
     model = Deployment

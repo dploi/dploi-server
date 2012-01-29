@@ -166,6 +166,9 @@ class Application(models.Model):
     def __unicode__(self):
         return u"%s" % (self.verbose_name or self.name,)
 
+    class Meta:
+        ordering = ['name']
+
 
 class Deployment(models.Model):
     """
@@ -196,6 +199,9 @@ class Deployment(models.Model):
     
     def get_default_identifier(self):
         return u"%s-%s" % (self.application.name, self.name)
+
+    class Meta:
+        ordering = ['name']
 
 
 class DomainName(models.Model):

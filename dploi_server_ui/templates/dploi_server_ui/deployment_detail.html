@@ -1,0 +1,8 @@
+{% extends "base.html" %}
+{% load future %}
+{% block page_header %}Deployment{% endblock %}
+{% block page_header_subtitle %}{{ object }}{% endblock %}
+{% block content %}
+	{{ object }}
+	<a href="{% url "dploi_deployment_update" object.id %}">Update deployment</a>
+{% endblock %}

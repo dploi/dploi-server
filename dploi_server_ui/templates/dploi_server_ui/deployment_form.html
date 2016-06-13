@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% block page_header %}{% if object.pk %}{% trans "Edit" %}{% else %}{% trans "Add" %}{% endif %} {% trans "Deployment" %}{% endblock %}
+{% block page_header_subtitle %}{{ object }}{% endblock %}
+{% block content %}
+	<form method="POST">
+	{% csrf_token %}
+		<table>
+			{{ form }}
+		</table>
+		<input class="btn primary" type="submit" value="{% trans "Save" %}">
+		<input class="btn" type="reset" value="{% trans "Reset" %}">
+	</form>
+{% endblock %}

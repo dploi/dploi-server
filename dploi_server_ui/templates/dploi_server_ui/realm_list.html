@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block content %}
+	<h1>dploi realms</h1>
+	<ul>
+	{% for realm in object_list %}
+		<li>{{ realm }}</li>
+	{% endfor %}
+	</ul>
+{% endblock %}

@@ -30,3 +30,38 @@ dploi-server is a django project. It can be run the classic django way::
 or using the built in command shortcut::
 
 	dploi-server runserver
+
+Puppet ENC Support
+==================
+You can use dploi server to configure your entire puppet managed setup. But first, you need to make sure that the following items are available on all servers. You can do that by putting it in site.pp:
+
+	node default {
+			group { "customers":
+				name		=> "customers",
+				gid		=> 502,
+				alias		=> 502,
+				ensure		=> present,
+				allowdupe	=> false,
+			}
+			group { "developers":
+				name		=> "developers",
+				gid		    => 500,
+				alias		=> 500,
+				ensure		=> present,
+				allowdupe	=> false;
+			}
+
+			sudo::sudo_user{
+			    "developers":
+			        user => "%developers",
+			        privileges => [
+			            "ALL = NOPASSWD: ALL",
+			        ]
+			}
+	}
+
+Furthermore, this should go into /etc/puppet/puppet.conf
+
+	[master]
+	node_terminus = exec
+	external_nodes = /path/to/dploi-server puppet_enc

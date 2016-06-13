@@ -1,9 +1,10 @@
 #-*- coding: utf-8 -*-
 from django.contrib import admin
+from dploi_server.directory import service_admin_dir
 from dploi_server.models import (Realm, Host,
-              Postgres, Gunicorn, RabbitMq, Celery, Redis, Solr,
+              Postgres, RabbitMq, Celery, Redis, Solr,
               Application, Deployment, DomainName, DomainAlias, DomainRedirect,
-              PostgresInstance, GunicornInstance, RabbitMqInstance, CeleryInstance, RedisInstance, SolrInstance, LoadBalancer)
+              PostgresInstance, RabbitMqInstance, CeleryInstance, RedisInstance, SolrInstance, LoadBalancer, PuppetClass, HostType, SSHKey)
 
 
 
@@ -32,11 +33,17 @@ class RealmAdmin(admin.ModelAdmin):
 
 admin.site.register(Realm, RealmAdmin)
 
+#############
+#  Puppet   #
+#############
+
+admin.site.register(PuppetClass)
 
 ##############
 # Host Admin #
 ##############
 
+admin.site.register(HostType)
 
 class LoadBalancerInline(TabularInline):
     model = LoadBalancer
@@ -45,9 +52,6 @@ class LoadBalancerInline(TabularInline):
 class PostgresInline(TabularInline):
     model = Postgres
 
-
-class GunicornInline(TabularInline):
-    model = Gunicorn
 
 
 class RabbitMqInline(TabularInline):
@@ -67,9 +71,9 @@ class SolrInline(TabularInline):
 
 
 class HostAdmin(admin.ModelAdmin):
-    list_display = ('name', 'public_ipv4', 'private_ipv4', 'realm',)
+    list_display = ('name', 'public_ipv4', 'private_ipv4', 'realm', 'get_puppet_classes')
     list_filter = ('realm',)
-    inlines = (LoadBalancerInline, PostgresInline, GunicornInline, RabbitMqInline, CeleryInline, RedisInline, SolrInline)
+    inlines = service_admin_dir._service_registry
 
 
 admin.site.register(Host, HostAdmin)
@@ -112,10 +116,6 @@ class PostgresInstanceInline(TabularInline):
     readonly_fields = ('name', 'user', 'password',)
 
 
-class GunicornInstanceInline(TabularInline):
-    model = GunicornInstance
-
-
 class RabbitMqInstanceInline(TabularInline):
     model = RabbitMqInstance
     readonly_fields = ('virtual_host', 'user', 'password',)
@@ -139,9 +139,7 @@ class DeploymentAdmin(admin.ModelAdmin):
     list_display = ('identifier', 'name', 'application', 'is_live',)
     list_filter = ('name',)
     readonly_fields = ('identifier',)
-    inlines = (DomainAliasInline, DomainRedirectInline,
-               PostgresInstanceInline, GunicornInstanceInline, RabbitMqInstanceInline, CeleryInstanceInline,
-               RedisInstanceInline, SolrInstanceInline)
+    inlines = [DomainAliasInline, DomainRedirectInline] + service_admin_dir._service_instance_registry
 
 
 admin.site.register(Deployment, DeploymentAdmin)
@@ -152,3 +150,5 @@ admin.site.register(Deployment, DeploymentAdmin)
 
 
 admin.site.register(DomainName)
+
+admin.site.register(SSHKey)

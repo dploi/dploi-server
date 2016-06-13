@@ -1,8 +1,11 @@
 #-*- coding: utf-8 -*-
 import random
+from django.contrib.auth.models import User, Group
 from django.db import models
+from django.db.models.aggregates import Max
+from django.db.models.query_utils import Q
 from dploi_server.utils.password import generate_password
-from dploi_server.validation import variable_name_validator, variable_name_and_dash_validator
+from dploi_server.validation import variable_name_validator, variable_name_and_dash_validator, hostname_validator
 
 
 class Realm(models.Model):
@@ -28,21 +31,60 @@ class Realm(models.Model):
     def __unicode__(self):
         return self.verbose_name or self.name
 
+class PuppetClass(models.Model):
+    class_name = models.CharField(max_length=128)
+
+    def __unicode__(self):
+        return self.class_name
+
+class HostType(models.Model):
+    name = models.CharField(max_length=128)
+    parent = models.ForeignKey("HostType", blank=True, null=True) # Puppet style inheritance
+    puppet_classes = models.ManyToManyField(PuppetClass)
+
+    def __unicode__(self):
+        return self.name
+
+    def classes(self):
+        if self.parent:
+            q = self.puppet_classes.all() | self.parent.classes() # TODO: Fix possibly inefficient recursive lookup
+            return q.distinct()
+        else:
+            return self.puppet_classes.all()
+
+    def classes_list(self):
+        return [c.class_name for c in self.classes()]
+
+class SSHKey(models.Model):
+    user = models.ForeignKey(User, related_name="dploi_ssh_keys")
+    name = models.CharField(max_length=128, unique=True)
+    key = models.TextField()
+    type = models.CharField(max_length=16)
+    # TODO: Revoke SSH key
+
+    def __unicode__(self):
+        return self.name
 
 class Host(models.Model):
     """
     A physical (or virtual) machine with an IP address
     """
     realm = models.ForeignKey(Realm, related_name='hosts')
-    name = models.CharField(max_length=255, validators=[variable_name_and_dash_validator])
+    host_type = models.ForeignKey(HostType)
+    name = models.CharField(max_length=255, validators=[hostname_validator], unique=True)
     public_ipv4 = models.CharField(max_length=15)
     private_ipv4 = models.CharField(max_length=15)
 
-    def hostname(self):
-        return "%s.%s" % (self.name, self.realm.base_domain)
+    administrator_groups = models.ManyToManyField(Group, related_name="dploi_admins")
 
-    class Meta:
-        unique_together = ('realm', 'name')
+    def puppet_classes_list(self):
+        return self.host_type.classes_list()
+
+    def get_puppet_classes(self):
+        return " ".join(self.puppet_classes_list())
+
+    def hostname(self):
+        return self.name
 
     def __unicode__(self):
         return u"%s" % (self.name,)
@@ -55,12 +97,20 @@ class Host(models.Model):
 class BaseService(models.Model):
     host = models.ForeignKey(Host, related_name='%(class)ss')
     is_enabled = models.BooleanField()  # mainly here so that inlines display correctly in admin ;-P
+    puppet_dependencies = []
 
     class Meta:
         abstract=True
 
     def __unicode__(self):
         return u"%s (%s)" % (self.__class__.__name__, self.host)
+
+
+class BaseServiceInstance(models.Model):
+    deployment = models.ForeignKey('Deployment', related_name='%(class)ss')
+
+    class Meta:
+        abstract=True
 
 
 class LoadBalancer(BaseService):
@@ -71,8 +121,7 @@ class Postgres(BaseService):
     port = models.IntegerField(default=5432)
 
 
-class Gunicorn(BaseService):
-    pass
+
 
 
 class Celery(BaseService):
@@ -117,6 +166,9 @@ class Application(models.Model):
     def __unicode__(self):
         return u"%s" % (self.verbose_name or self.name,)
 
+    class Meta:
+        ordering = ['name']
+
 
 class Deployment(models.Model):
     """
@@ -125,13 +177,16 @@ class Deployment(models.Model):
     application = models.ForeignKey(Application, related_name='deployments')
     is_live = models.BooleanField(default=False)
     identifier = models.CharField(max_length=255, unique=True, validators=[variable_name_and_dash_validator],
-                                  help_text='system wide unique identifier of this deplpyment')
+                                  help_text='system wide unique identifier of this deplpyment', editable=False)
     name = models.CharField(max_length=255, validators=[variable_name_validator])
     description = models.TextField(blank=True, default='')
     private_key = models.TextField(blank=True, default='', help_text='private deployment ssh key for source code access')
     public_key = models.TextField(blank=True, default='', help_text='public deployment ssh key for source code access')
     branch = models.CharField(max_length=255, default='develop', help_text="branch or tag for this deployment")
     load_balancer = models.ForeignKey(LoadBalancer, related_name='deployments', null=True, blank=True)
+
+    def __unicode__(self):
+        return self.identifier
 
     def domains(self):
         # TODO: Find a better way to lookup base domain(s)
@@ -144,6 +199,9 @@ class Deployment(models.Model):
     
     def get_default_identifier(self):
         return u"%s-%s" % (self.application.name, self.name)
+
+    class Meta:
+        ordering = ['name']
 
 
 class DomainName(models.Model):
@@ -188,12 +246,6 @@ class PostgresInstance(models.Model):
         return generate_password()
 
 
-class GunicornInstance(models.Model):
-    service = models.ForeignKey(Gunicorn, related_name='instances')
-    deployment = models.ForeignKey(Deployment, related_name='gunicorn_instances')
-
-    workers = models.PositiveSmallIntegerField(default=3)
-    max_requests = models.PositiveSmallIntegerField(default=2000)
 
 
 class RabbitMqInstance(models.Model):
@@ -263,13 +315,18 @@ class SolrInstance(models.Model):
     def get_default_password(self):
         return generate_password()
 
+class UnixUser(models.Model):
+    uid = models.PositiveIntegerField(primary_key=True,)
+    user = models.OneToOneField(User, blank=True, null=True,)
+    deployment = models.OneToOneField(Deployment, blank=True, null=True)
+
 
 
 ###########
 # Signals #
 ###########
 
-from django.db.models.signals import pre_save
+from django.db.models.signals import pre_save, post_save
 
 def set_defaults(sender, **kwargs):
     """
@@ -287,3 +344,21 @@ def set_defaults(sender, **kwargs):
                     default_value = default_value()
                 setattr(instance, field_name, default_value)
 pre_save.connect(set_defaults)
+
+def unix_uid_for_user_and_deployment(sender, instance, created, **kwargs):
+    try:
+        instance.unixuser.uid
+    except UnixUser.DoesNotExist:
+        new_uid = UnixUser.objects.aggregate(uid=Max("uid"))["uid"]
+        if not new_uid or new_uid < 1000:
+            new_uid = 1000
+        else:
+            new_uid += 1
+        if type(instance) == User:
+            UnixUser.objects.create(user=instance, uid=new_uid)
+        elif type(instance) == Deployment:
+            UnixUser.objects.create(deployment=instance, uid=new_uid)
+
+
+post_save.connect(unix_uid_for_user_and_deployment, User, dispatch_uid="unix_uid_for_user_and_deployment")
+post_save.connect(unix_uid_for_user_and_deployment, Deployment, dispatch_uid="unix_uid_for_user_and_deployment2")
